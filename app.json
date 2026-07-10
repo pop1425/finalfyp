@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "App",
-    "slug": "App",
+    "name": "VoiceSend",
+    "slug": "VoiceSend",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -50,14 +50,14 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "Allow VoicePay to use the microphone for transaction commands.",
-          "speechRecognitionPermission": "Allow VoicePay to use speech recognition to parse transaction commands."
+          "microphonePermission": "Allow VoiceSend to use the microphone for transaction commands.",
+          "speechRecognitionPermission": "Allow VoiceSend to use speech recognition to parse transaction commands."
         }
       ],
       [
         "expo-contacts",
         {
-          "contactsPermission": "Allow VoicePay to access contacts to find transaction recipients."
+          "contactsPermission": "Allow VoiceSend to access contacts to find transaction recipients."
         }
       ]
     ],

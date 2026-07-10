@@ -44,14 +44,30 @@ export function useContacts() {
 
       const query = name.toLowerCase().trim();
       
-      // Filter contacts matching the name query
-      const matches = data.filter(contact => {
+      // Try to find exact matches first (check firstName, lastName, display name, or full name exactly)
+      let matches = data.filter(contact => {
         const fullName = [contact.firstName, contact.lastName, contact.name]
           .filter(Boolean)
           .join(' ')
-          .toLowerCase();
-        return fullName.includes(query);
+          .toLowerCase()
+          .trim();
+        const firstName = (contact.firstName || '').toLowerCase().trim();
+        const lastName = (contact.lastName || '').toLowerCase().trim();
+        const contactName = (contact.name || '').toLowerCase().trim();
+        
+        return fullName === query || firstName === query || lastName === query || contactName === query;
       });
+
+      // If no exact match is found, fallback to substring match
+      if (matches.length === 0) {
+        matches = data.filter(contact => {
+          const fullName = [contact.firstName, contact.lastName, contact.name]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+          return fullName.includes(query);
+        });
+      }
 
       if (matches.length > 0) {
         const match = matches[0];

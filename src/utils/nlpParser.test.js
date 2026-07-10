@@ -26,14 +26,7 @@ const testCases = [
     input: "Transfer 2500 to Bob",
     expected: { type: 'SEND', amount: 2500, recipient: 'Bob' }
   },
-  {
-    input: "Check balance",
-    expected: { type: 'BALANCE' }
-  },
-  {
-    input: "Salio langu",
-    expected: { type: 'BALANCE' }
-  },
+
   {
     input: "Ghairi malipo",
     expected: { type: 'CANCEL' }

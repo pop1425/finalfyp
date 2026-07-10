@@ -127,11 +127,7 @@ function parseSpokenText(text) {
     return { type: 'CANCEL' };
   }
   
-  // Check for Balance command
-  if (tokens.some(t => ['balance', 'salio', 'account'].includes(t))) {
-    return { type: 'BALANCE' };
-  }
-  
+
   // Check if we have transaction keyword (send, tuma, nitumie, transfer, pay, lipa)
   const isSend = tokens.some(t => ['send', 'transfer', 'tuma', 'nitumie', 'lipa', 'pay'].includes(t));
   if (!isSend) {

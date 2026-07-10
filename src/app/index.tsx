@@ -54,11 +54,10 @@ export default function HomeScreen() {
   const { isFingerprintAvailable, authenticate } = useBiometrics();
   const { findContactByName } = useContacts();
 
-  // App States: 'IDLE', 'LISTENING', 'CONFIRMING', 'REQUESTING_ISP', 'SUCCESS', 'CANCELLED', 'SPEAKING_BALANCE'
+  // App States: 'IDLE', 'LISTENING', 'CONFIRMING', 'REQUESTING_ISP', 'SUCCESS', 'CANCELLED'
   const [appState, setAppState] = useState<string>('IDLE');
-  const [balance, setBalance] = useState<number>(15000); // Default local balance
   const [currentTransaction, setCurrentTransaction] = useState<{ amount: number; recipient: string; number: string | null } | null>(null);
-  const [statusText, setStatusText] = useState<string>('Tap to Start');
+  const [statusText, setStatusText] = useState<string>('Gusa ili Kuanza');
   const [spokenTextDisplay, setSpokenTextDisplay] = useState<string>('');
   
   // Real ISP Payment Gateway JSON Log
@@ -72,54 +71,48 @@ export default function HomeScreen() {
   const waveAnim1 = useRef(new Animated.Value(0)).current;
   const waveAnim2 = useRef(new Animated.Value(0)).current;
 
-  // English system prompt speak helper
+  // Swahili system prompt speak helper
   const speakSystemPrompt = (key: string, vars: any = {}) => {
     let text = '';
     
     switch (key) {
       case 'WELCOME_OFFLINE':
-        text = 'Welcome to VoicePay. Tap anywhere on the screen to speak your command.';
+        text = 'Karibu kwenye VoiceSend. Gusa popote kwenye skrini ili kuongea.';
         break;
       case 'WELCOME_AI_OFFLINE':
-        text = 'Welcome to VoicePay. AI assistant active. Tap anywhere on the screen to speak.';
+        text = 'Karibu kwenye VoiceSend. Msaidizi wa AI yuko tayari. Gusa popote ili kuongea.';
         break;
       case 'WELCOME_CLOUD':
-        text = 'Welcome to VoicePay. Cloud connected. Tap to start.';
+        text = 'Karibu kwenye VoiceSend. Mtandao umeunganishwa. Gusa ili kuanza.';
         break;
       case 'WELCOME_AI_CLOUD':
-        text = 'Welcome to VoicePay. Cloud connected. AI assistant active. Tap to start.';
+        text = 'Karibu kwenye VoiceSend. Mtandao umeunganishwa na msaidizi wa AI yuko tayari. Gusa ili kuanza.';
         break;
       case 'RECOGNITION_ERROR':
-        text = 'Command not recognized. Tap and try again.';
+        text = 'Muamala haukutambulika. Tafadhali gusa na ujaribu tena.';
         break;
       case 'CANCELLED':
-        text = 'Transaction cancelled. Tap to redo transaction.';
-        break;
-      case 'BALANCE':
-        text = `Your balance is ${vars.balance.toLocaleString()} shillings.`;
-        break;
-      case 'INSUFFICIENT_BALANCE':
-        text = `Insufficient balance. Your current balance is ${vars.balance.toLocaleString()} shillings. Tap to try again.`;
+        text = 'Muamala umeghairiwa. Gusa ili kuanza upya.';
         break;
       case 'CONFIRM_SEND':
         if (vars.number) {
-          text = `Sending ${vars.amount.toLocaleString()} shillings to ${vars.recipient}, phone number ${vars.number}. Place your finger on the sensor to confirm.`;
+          text = `Ninatuma shilingi ${vars.amount.toLocaleString()} kwa ${vars.recipient}, namba ya simu ${vars.number}. Weka kidole chako kwenye kihisi ili kudhibitisha.`;
         } else {
-          text = `Sending ${vars.amount.toLocaleString()} shillings to ${vars.recipient}, phone number not found. Place your finger on the sensor to confirm.`;
+          text = `Ninatuma shilingi ${vars.amount.toLocaleString()} kwa ${vars.recipient}, namba ya simu haikupatikana. Weka kidole chako kwenye kihisi ili kudhibitisha.`;
         }
         break;
       case 'REQUESTING_ISP':
-        text = 'Requesting payment gateway.';
+        text = 'Ninasajili malipo kwenye mtandao.';
         break;
       case 'SUCCESS':
-        text = `Transaction successful. ${vars.amount.toLocaleString()} shillings sent to ${vars.recipient}.`;
+        text = `Muamala umekamilika. Shilingi ${vars.amount.toLocaleString()} zimetumwa kwa ${vars.recipient}.`;
         break;
       case 'SEARCHING_CONTACTS':
-        text = `Searching contacts for ${vars.recipient}.`;
+        text = `Ninasaka namba ya simu ya ${vars.recipient} kwenye orodha yako ya mawasiliano.`;
         break;
     }
     
-    speak(text, 'en-US');
+    speak(text, 'sw-TZ');
   };
 
   // Initial welcome greeting & Firebase subscription
@@ -135,37 +128,9 @@ export default function HomeScreen() {
       return () => clearTimeout(timer);
     }
 
-    setStatusText('Syncing with Cloud database...');
     const appStartTime = Date.now();
 
-    // 1. Subscribe to real-time balance of 'current_user' (represented as 'Juma')
-    const userDocRef = doc(db, 'users', 'current_user');
-    const unsubscribeUser = onSnapshot(userDocRef, async (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data && typeof data.balance === 'number') {
-          setBalance(data.balance);
-          setStatusText('Tap to Start');
-        }
-      } else {
-        try {
-          await setDoc(userDocRef, {
-            name: 'Juma',
-            balance: 15000
-          });
-          setBalance(15000);
-          setStatusText('Tap to Start');
-        } catch (e) {
-          console.error('Error initializing user document:', e);
-          setStatusText('Sync Failed');
-        }
-      }
-    }, (error) => {
-      console.error('Firestore user subscription error:', error);
-      setStatusText('Sync Error');
-    });
-
-    // 2. Subscribe to incoming transactions to Juma in real-time
+    // Subscribe to incoming transactions to Juma in real-time
     const txCollectionRef = collection(db, 'transactions');
     const q = query(txCollectionRef, where('recipient', '==', 'Juma'));
     const unsubscribeTx = onSnapshot(q, (snapshot) => {
@@ -176,14 +141,14 @@ export default function HomeScreen() {
             const txTime = data.timestamp?.toDate ? data.timestamp.toDate().getTime() : Date.now();
             if (txTime > appStartTime - 3000) {
               // Real-time Text-to-Speech incoming notification
-              const alertMsg = `You have received ${data.amount.toLocaleString()} shillings from ${data.senderName}.`;
+              const alertMsg = `Umepokea shilingi ${data.amount.toLocaleString()} kutoka kwa ${data.senderName}.`;
               
-              speak(alertMsg, 'en-US');
-              setStatusText(`Received ${data.amount.toLocaleString()} TZS`);
-              setSpokenTextDisplay(`Received ${data.amount.toLocaleString()} TZS from ${data.senderName}`);
+              speak(alertMsg, 'sw-TZ');
+              setStatusText(`Umepokea ${data.amount.toLocaleString()} TZS`);
+              setSpokenTextDisplay(`Umepokea ${data.amount.toLocaleString()} TZS kutoka kwa ${data.senderName}`);
               
               setTimeout(() => {
-                setStatusText('Tap to Start');
+                setStatusText('Gusa ili Kuanza');
               }, 5000);
             }
           }
@@ -199,7 +164,6 @@ export default function HomeScreen() {
 
     return () => {
       clearTimeout(timer);
-      unsubscribeUser();
       unsubscribeTx();
     };
   }, [isFirebaseConfigured, db, speak]);
@@ -264,7 +228,7 @@ export default function HomeScreen() {
 
   // Main NLP & AI command processor
   const handleProcessCommand = async (text: string) => {
-    setStatusText('Processing command...');
+    setStatusText('Inachakata muamala...');
 
     // If Gemini AI is configured, let it handle conversational parsing!
     if (isGeminiConfigured) {
@@ -274,8 +238,8 @@ export default function HomeScreen() {
         if (aiResponse) {
           console.log("Gemini parsed response:", aiResponse);
           
-          // Speak AI response Speech using English
-          speak(aiResponse.responseSpeech, 'en-US');
+          // Speak AI response Speech using Swahili
+          speak(aiResponse.responseSpeech, 'sw-TZ');
           
           setChatHistory(prev => [
             ...prev,
@@ -285,22 +249,14 @@ export default function HomeScreen() {
 
           if (aiResponse.intent === 'CANCEL') {
             handleCancel();
-          } else if (aiResponse.intent === 'BALANCE') {
-            speak(`Your current balance is ${balance.toLocaleString()} shillings.`, 'en-US');
-            setStatusText(`Balance: ${balance.toLocaleString()} TZS`);
-            
-            setTimeout(() => {
-              setAppState('IDLE');
-              setStatusText('Tap to Start');
-            }, 5000);
           } else if (aiResponse.intent === 'CLARIFY') {
-            setStatusText('Listening for details...');
+            setStatusText('Inasikiliza maelezo...');
             setTimeout(() => {
               startListening();
             }, 4500);
           } else if (aiResponse.intent === 'SEND' && aiResponse.amount) {
             const recipientName = aiResponse.recipient || 'Unknown';
-            setStatusText(`Searching contacts for ${recipientName}...`);
+            setStatusText(`Inatafuta mawasiliano ya ${recipientName}...`);
             
             speakSystemPrompt('SEARCHING_CONTACTS', { recipient: recipientName });
             
@@ -311,7 +267,7 @@ export default function HomeScreen() {
             handleSendTransaction(aiResponse.amount, resolvedName, resolvedNumber);
           } else if (aiResponse.intent === 'CHITCHAT') {
             setAppState('IDLE');
-            setStatusText('Tap to Start');
+            setStatusText('Gusa ili Kuanza');
             setChatHistory([]);
           }
           return;
@@ -326,10 +282,8 @@ export default function HomeScreen() {
 
     if (result.type === 'CANCEL') {
       handleCancel();
-    } else if (result.type === 'BALANCE') {
-      handleBalanceCheck();
     } else if (result.type === 'SEND') {
-      setStatusText(`Searching contacts for ${result.recipient}...`);
+      setStatusText(`Inatafuta mawasiliano ya ${result.recipient}...`);
       speakSystemPrompt('SEARCHING_CONTACTS', { recipient: result.recipient });
 
       const contact = await findContactByName(result.recipient);
@@ -339,49 +293,29 @@ export default function HomeScreen() {
       handleSendTransaction(result.amount, recipientName, recipientNumber);
     } else {
       setAppState('IDLE');
-      setStatusText('Tap to Start');
+      setStatusText('Gusa ili Kuanza');
       speakSystemPrompt('RECOGNITION_ERROR');
     }
   };
 
   const handleCancel = () => {
     setAppState('CANCELLED');
-    setStatusText('Transaction Cancelled');
+    setStatusText('Muamala Umeghairiwa');
     speakSystemPrompt('CANCELLED');
     setChatHistory([]);
     
     setTimeout(() => {
       setAppState('IDLE');
-      setStatusText('Tap to Start');
+      setStatusText('Gusa ili Kuanza');
       setSpokenTextDisplay('');
       setIspPayload('');
     }, 4000);
   };
 
-  const handleBalanceCheck = () => {
-    setAppState('SPEAKING_BALANCE');
-    setStatusText(`Balance: ${balance.toLocaleString()} TZS`);
-    speakSystemPrompt('BALANCE', { balance });
-    
-    setTimeout(() => {
-      setAppState('IDLE');
-      setStatusText('Tap to Start');
-      setSpokenTextDisplay('');
-    }, 5000);
-  };
-
   const handleSendTransaction = (amount: number, recipientName: string, recipientNumber: string | null) => {
-    if (amount > balance) {
-      setAppState('IDLE');
-      setStatusText('Insufficient Balance');
-      speakSystemPrompt('INSUFFICIENT_BALANCE', { balance });
-      setChatHistory([]);
-      return;
-    }
-
     setCurrentTransaction({ amount, recipient: recipientName, number: recipientNumber });
     setAppState('CONFIRMING');
-    setStatusText(`Confirm Send ${amount.toLocaleString()} to ${recipientName}`);
+    setStatusText(`Thibitisha Tuma ${amount.toLocaleString()} kwa ${recipientName}`);
     
     speakSystemPrompt('CONFIRM_SEND', { amount, recipient: recipientName, number: recipientNumber });
 
@@ -396,7 +330,7 @@ export default function HomeScreen() {
       // Success Callback
       async () => {
         setAppState('REQUESTING_ISP');
-        setStatusText('Requesting ISP Gateway...');
+        setStatusText('Inatuma Ombi Mtandaoni...');
         speakSystemPrompt('REQUESTING_ISP');
 
         // Build payment gateway JSON payload containing credentials
@@ -422,10 +356,6 @@ export default function HomeScreen() {
         setTimeout(async () => {
           if (isFirebaseConfigured && db) {
             try {
-              await updateDoc(doc(db, 'users', 'current_user'), {
-                balance: increment(-amount)
-              });
-
               await addDoc(collection(db, 'transactions'), {
                 amount: amount,
                 recipient: recipientName,
@@ -438,17 +368,15 @@ export default function HomeScreen() {
             } catch (e) {
               console.error('Error writing transfer to database:', e);
             }
-          } else {
-            setBalance(prev => prev - amount);
           }
 
           setAppState('SUCCESS');
-          setStatusText('Transfer Successful');
+          setStatusText('Muamala Umekamilika');
           speakSystemPrompt('SUCCESS', { amount, recipient: recipientName });
 
           setTimeout(() => {
             setAppState('IDLE');
-            setStatusText('Tap to Start');
+            setStatusText('Gusa ili Kuanza');
             setCurrentTransaction(null);
             setSpokenTextDisplay('');
             setIspPayload('');
@@ -485,7 +413,7 @@ export default function HomeScreen() {
       stopListening();
     } else {
       setAppState('LISTENING');
-      setStatusText('Listening...');
+      setStatusText('Inasikiliza...');
       setSpokenTextDisplay('');
       startListening();
     }
@@ -549,7 +477,7 @@ export default function HomeScreen() {
 
       {/* Main Content Area */}
       <View style={styles.content}>
-        <Text style={styles.appName}>VoicePay</Text>
+        <Text style={styles.appName}>VoiceSend</Text>
 
         {/* AI & Database indicators */}
         <View style={styles.badgeRow}>
@@ -619,21 +547,19 @@ export default function HomeScreen() {
                 />
                 <Text style={[styles.buttonHint, { color: glowColor }]}>
                   {appState === 'CONFIRMING'
-                    ? 'Confirm Transaction'
+                    ? 'Thibitisha Muamala'
                     : appState === 'REQUESTING_ISP'
-                    ? 'Connecting ISP Gateway...'
+                    ? 'Inatuma Ombi Mtandaoni...'
                     : isListening
-                    ? 'Listening... Tap to Stop'
-                    : 'Tap to Speak'}
+                    ? 'Inasikiliza... Gusa Kusitisha'
+                    : 'Gusa ili Uongee'}
                 </Text>
               </TouchableOpacity>
             </Animated.View>
           </View>
         )}
 
-        <Text style={styles.balanceOverlay}>
-          Balance: {balance.toLocaleString()} TZS
-        </Text>
+
       </View>
     </SafeAreaView>
   );
@@ -774,10 +700,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
   },
-  balanceOverlay: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#888',
-    letterSpacing: 1,
-  },
+
 });

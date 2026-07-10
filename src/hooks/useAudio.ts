@@ -47,7 +47,6 @@ export function useAudio() {
         const lowerText = text.toLowerCase();
         if (
           lowerText.includes('tuma') || 
-          lowerText.includes('salio') || 
           lowerText.includes('nitumie') || 
           lowerText.includes('ghairi') ||
           lowerText.includes('shilingi') ||
