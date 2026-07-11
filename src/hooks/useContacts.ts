@@ -35,9 +35,15 @@ export function useContacts() {
     }
 
     try {
-      // Retrieve contacts with phone numbers
+      // Retrieve contacts with names and phone numbers
       const { data } = await Contacts.getContactsAsync({
-        fields: [Contacts.Fields.PhoneNumbers],
+        fields: [
+          Contacts.Fields.FirstName,
+          Contacts.Fields.LastName,
+          Contacts.Fields.Name,
+          Contacts.Fields.PhoneNumbers,
+        ],
+        pageSize: 1000,
       });
 
       if (!data || data.length === 0) return null;
