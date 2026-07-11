@@ -17,20 +17,8 @@ import { useBiometrics } from '../hooks/useBiometrics';
 import { useContacts } from '../hooks/useContacts';
 import { parseSpokenText } from '../utils/nlpParser';
 
-// Import Firebase config
-import { db, isFirebaseConfigured } from '../config/firebase';
-import {
-  doc,
-  onSnapshot,
-  setDoc,
-  updateDoc,
-  addDoc,
-  collection,
-  serverTimestamp,
-  increment,
-  query,
-  where
-} from 'firebase/firestore';
+// Import Supabase config
+import { supabase, isSupabaseConfigured } from '../config/supabase';
 
 // Import Gemini AI Config and Service
 import { isGeminiConfigured } from '../config/gemini';
@@ -115,13 +103,13 @@ export default function HomeScreen() {
     speak(text, 'sw-TZ');
   };
 
-  // Initial welcome greeting & Firebase subscription
+  // Initial welcome greeting & Supabase subscription
   useEffect(() => {
-    const welcomeKey = isFirebaseConfigured
+    const welcomeKey = isSupabaseConfigured
       ? (isGeminiConfigured ? 'WELCOME_AI_CLOUD' : 'WELCOME_CLOUD')
       : (isGeminiConfigured ? 'WELCOME_AI_OFFLINE' : 'WELCOME_OFFLINE');
 
-    if (!isFirebaseConfigured || !db) {
+    if (!isSupabaseConfigured) {
       const timer = setTimeout(() => {
         speakSystemPrompt(welcomeKey);
       }, 1000);
@@ -130,22 +118,28 @@ export default function HomeScreen() {
 
     const appStartTime = Date.now();
 
-    // Subscribe to incoming transactions to Juma in real-time
-    const txCollectionRef = collection(db, 'transactions');
-    const q = query(txCollectionRef, where('recipient', '==', 'Juma'));
-    const unsubscribeTx = onSnapshot(q, (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === 'added') {
-          const data = change.doc.data();
-          if (data && data.senderName !== 'Juma') {
-            const txTime = data.timestamp?.toDate ? data.timestamp.toDate().getTime() : Date.now();
+    // Subscribe to incoming transactions to Juma in real-time using Supabase
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'transactions',
+          filter: 'recipient=eq.Juma'
+        },
+        (payload) => {
+          const data = payload.new;
+          if (data && data.sender_name !== 'Juma') {
+            const txTime = data.created_at ? new Date(data.created_at).getTime() : Date.now();
             if (txTime > appStartTime - 3000) {
               // Real-time Text-to-Speech incoming notification
-              const alertMsg = `Umepokea shilingi ${data.amount.toLocaleString()} kutoka kwa ${data.senderName}.`;
+              const alertMsg = `Umepokea shilingi ${data.amount.toLocaleString()} kutoka kwa ${data.sender_name}.`;
               
               speak(alertMsg, 'sw-TZ');
               setStatusText(`Umepokea ${data.amount.toLocaleString()} TZS`);
-              setSpokenTextDisplay(`Umepokea ${data.amount.toLocaleString()} TZS kutoka kwa ${data.senderName}`);
+              setSpokenTextDisplay(`Umepokea ${data.amount.toLocaleString()} TZS kutoka kwa ${data.sender_name}`);
               
               setTimeout(() => {
                 setStatusText('Gusa ili Kuanza');
@@ -153,10 +147,8 @@ export default function HomeScreen() {
             }
           }
         }
-      });
-    }, (error) => {
-      console.error('Firestore transactions subscription error:', error);
-    });
+      )
+      .subscribe();
 
     const timer = setTimeout(() => {
       speakSystemPrompt(welcomeKey);
@@ -164,9 +156,9 @@ export default function HomeScreen() {
 
     return () => {
       clearTimeout(timer);
-      unsubscribeTx();
+      supabase.removeChannel(channel);
     };
-  }, [isFirebaseConfigured, db, speak]);
+  }, [isSupabaseConfigured, speak]);
 
   // Audio wave and pulse animation controls
   useEffect(() => {
@@ -354,17 +346,20 @@ export default function HomeScreen() {
 
         // Simulate payment gateway latency (2.5 seconds)
         setTimeout(async () => {
-          if (isFirebaseConfigured && db) {
+          if (isSupabaseConfigured) {
             try {
-              await addDoc(collection(db, 'transactions'), {
-                amount: amount,
-                recipient: recipientName,
-                recipientNumber: recipientNumber || 'Unknown/Manual',
-                senderName: 'Juma',
-                transactionId: txId,
-                timestamp: serverTimestamp()
-              });
-
+              const { error } = await supabase
+                .from('transactions')
+                .insert([
+                  {
+                    transaction_id: txId,
+                    amount: amount,
+                    recipient: recipientName,
+                    recipient_number: recipientNumber || 'Unknown/Manual',
+                    sender_name: 'Juma'
+                  }
+                ]);
+              if (error) throw error;
             } catch (e) {
               console.error('Error writing transfer to database:', e);
             }
@@ -482,7 +477,7 @@ export default function HomeScreen() {
         {/* AI & Database indicators */}
         <View style={styles.badgeRow}>
           <Text style={styles.badge}>
-            {isFirebaseConfigured ? '🟢 CLOUD' : '🟡 LOCAL'}
+            {isSupabaseConfigured ? '🟢 CLOUD' : '🟡 LOCAL'}
           </Text>
           <Text style={styles.badge}>
             {isGeminiConfigured ? '🟢 AI ACTIVE' : '🟡 LOCAL NLP'}

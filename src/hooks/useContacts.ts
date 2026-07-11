@@ -77,13 +77,16 @@ export function useContacts() {
 
       if (matches.length > 0) {
         const match = matches[0];
-        const number = match.phoneNumbers && match.phoneNumbers.length > 0
+        const rawNumber = match.phoneNumbers && match.phoneNumbers.length > 0
           ? match.phoneNumbers[0].number || null
           : null;
         
+        // Normalize the phone number format (keep only digits and optional leading +)
+        const cleanNumber = rawNumber ? rawNumber.replace(/[^\d+]/g, '') : null;
+        
         return {
           name: match.name || `${match.firstName || ''} ${match.lastName || ''}`.trim(),
-          number: number
+          number: cleanNumber
         };
       }
       return null;
