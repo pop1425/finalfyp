@@ -295,6 +295,7 @@ export default function HomeScreen() {
     setStatusText('Muamala Umeghairiwa');
     speakSystemPrompt('CANCELLED');
     setChatHistory([]);
+    setCurrentTransaction(null);
     
     setTimeout(() => {
       setAppState('IDLE');
@@ -496,6 +497,19 @@ export default function HomeScreen() {
           ) : null}
         </View>
 
+        {/* Contact details display panel */}
+        {currentTransaction && (
+          <View style={[styles.contactCard, { borderColor: glowColor + '40' }]}>
+            <Ionicons name="person-circle-outline" size={46} color={glowColor} />
+            <View style={styles.contactDetails}>
+              <Text style={styles.contactName}>{currentTransaction.recipient}</Text>
+              <Text style={styles.contactNumber}>
+                {currentTransaction.number || 'Namba haikupatikana'}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Gateway API Payload Panel (Rendered only when submitting or done) */}
         {ispPayload ? (
           <View style={styles.gatewayPanel}>
@@ -694,6 +708,30 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     fontSize: 12,
     lineHeight: 16,
+  },
+  contactCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#131124',
+    borderWidth: 1.5,
+    borderRadius: 16,
+    padding: 16,
+    width: '85%',
+    gap: 16,
+    marginVertical: 12,
+  },
+  contactDetails: {
+    flex: 1,
+  },
+  contactName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  contactNumber: {
+    fontSize: 14,
+    color: '#AAA',
+    marginTop: 4,
   },
 
 });
