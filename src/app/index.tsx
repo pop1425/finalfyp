@@ -253,10 +253,18 @@ export default function HomeScreen() {
             speakSystemPrompt('SEARCHING_CONTACTS', { recipient: recipientName });
             
             const contact = await findContactByName(recipientName);
-            const resolvedName = contact ? contact.name : recipientName;
-            const resolvedNumber = contact ? contact.number : null;
+            if (!contact) {
+              setStatusText('Mawasiliano Hayakufanikiwa');
+              speak(`Mawasiliano ya ${recipientName} hayakupatikana kwenye orodha yako ya simu.`, 'sw-TZ');
+              setChatHistory([]);
+              setAppState('IDLE');
+              setTimeout(() => {
+                setStatusText('Gusa ili Kuanza');
+              }, 4000);
+              return;
+            }
 
-            handleSendTransaction(aiResponse.amount, resolvedName, resolvedNumber);
+            handleSendTransaction(aiResponse.amount, contact.name, contact.number);
           } else if (aiResponse.intent === 'CHITCHAT') {
             setAppState('IDLE');
             setStatusText('Gusa ili Kuanza');
@@ -279,10 +287,17 @@ export default function HomeScreen() {
       speakSystemPrompt('SEARCHING_CONTACTS', { recipient: result.recipient });
 
       const contact = await findContactByName(result.recipient);
-      const recipientName = contact ? contact.name : result.recipient;
-      const recipientNumber = contact ? contact.number : null;
+      if (!contact) {
+        setStatusText('Mawasiliano Hayakufanikiwa');
+        speak(`Mawasiliano ya ${result.recipient} hayakupatikana kwenye orodha yako ya simu.`, 'sw-TZ');
+        setAppState('IDLE');
+        setTimeout(() => {
+          setStatusText('Gusa ili Kuanza');
+        }, 4000);
+        return;
+      }
 
-      handleSendTransaction(result.amount, recipientName, recipientNumber);
+      handleSendTransaction(result.amount, contact.name, contact.number);
     } else {
       setAppState('IDLE');
       setStatusText('Gusa ili Kuanza');
