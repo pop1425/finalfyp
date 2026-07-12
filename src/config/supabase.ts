@@ -8,7 +8,12 @@ export const SUPABASE_ANON_KEY: string = "YOUR_SUPABASE_ANON_KEY";
 export const isSupabaseConfigured = !!(
   SUPABASE_URL && 
   SUPABASE_URL !== "YOUR_SUPABASE_URL" &&
-  SUPABASE_URL.trim() !== ""
+  SUPABASE_URL.trim() !== "" &&
+  SUPABASE_URL.startsWith("https://")
 );
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Fallback credentials to prevent app crash on startup if URL is invalid/unconfigured
+const validUrl = isSupabaseConfigured ? SUPABASE_URL : "https://placeholder-to-prevent-crash.supabase.co";
+const validKey = isSupabaseConfigured ? SUPABASE_ANON_KEY : "placeholder-key";
+
+export const supabase = createClient(validUrl, validKey);
