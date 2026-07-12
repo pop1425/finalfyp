@@ -1,73 +1,48 @@
 // src/hooks/useContacts.ts
-import { useState, useEffect } from 'react';
-import * as Contacts from 'expo-contacts';
+import { useState } from 'react';
+import { Contact, ContactField } from 'expo-contacts';
+import { requestPermissionsAsync } from 'expo-contacts/legacy';
 
 export function useContacts() {
   const [hasContactsPermission, setHasContactsPermission] = useState<boolean>(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const { status } = await Contacts.requestPermissionsAsync();
-        setHasContactsPermission(status === 'granted');
-      } catch (e) {
-        console.error('Error requesting contacts permission:', e);
-      }
-    })();
-  }, []);
-
-  /**
-   * Search for a contact by name in the phone book.
-   * @param name - The name to look for (case-insensitive).
-   * @returns The contact details if found, or null.
-   */
   const findContactByName = async (name: string): Promise<{ name: string; number: string | null } | null> => {
-    let permissionGranted = hasContactsPermission;
-    if (!permissionGranted) {
-      try {
-        const { status } = await Contacts.requestPermissionsAsync();
-        permissionGranted = status === 'granted';
-        setHasContactsPermission(permissionGranted);
-        if (!permissionGranted) return null;
-      } catch (e) {
-        return null;
-      }
-    }
-
     try {
-      // Retrieve contacts with names and phone numbers
-      const { data } = await Contacts.getContactsAsync({
-        fields: [
-          Contacts.Fields.FirstName,
-          Contacts.Fields.LastName,
-          Contacts.Fields.Name,
-          Contacts.Fields.PhoneNumbers,
-        ],
-        pageSize: 1000,
-      });
+      if (!hasContactsPermission) {
+        const { status } = await requestPermissionsAsync();
+        if (status !== 'granted') {
+          setHasContactsPermission(false);
+          return null;
+        }
+        setHasContactsPermission(true);
+      }
+
+      const data = await Contact.getAllDetails(
+        [ContactField.GIVEN_NAME, ContactField.FAMILY_NAME, ContactField.FULL_NAME, ContactField.PHONES],
+        { name: name, limit: 50 }
+      );
 
       if (!data || data.length === 0) return null;
 
       const query = name.toLowerCase().trim();
-      
-      // Try to find exact matches first (check firstName, lastName, display name, or full name exactly)
+
+      // Try to find exact matches first
       let matches = data.filter(contact => {
-        const fullName = [contact.firstName, contact.lastName, contact.name]
+        const fullName = [contact.givenName, contact.familyName, contact.fullName]
           .filter(Boolean)
           .join(' ')
           .toLowerCase()
           .trim();
-        const firstName = (contact.firstName || '').toLowerCase().trim();
-        const lastName = (contact.lastName || '').toLowerCase().trim();
-        const contactName = (contact.name || '').toLowerCase().trim();
-        
-        return fullName === query || firstName === query || lastName === query || contactName === query;
+        const firstName = (contact.givenName || '').toLowerCase().trim();
+        const lastName = (contact.familyName || '').toLowerCase().trim();
+
+        return fullName === query || firstName === query || lastName === query;
       });
 
-      // If no exact match is found, fallback to substring match
+      // If no exact match, fallback to substring match
       if (matches.length === 0) {
         matches = data.filter(contact => {
-          const fullName = [contact.firstName, contact.lastName, contact.name]
+          const fullName = [contact.givenName, contact.familyName, contact.fullName]
             .filter(Boolean)
             .join(' ')
             .toLowerCase();
@@ -77,15 +52,15 @@ export function useContacts() {
 
       if (matches.length > 0) {
         const match = matches[0];
-        const rawNumber = match.phoneNumbers && match.phoneNumbers.length > 0
-          ? match.phoneNumbers[0].number || null
+        const rawNumber = match.phones && match.phones.length > 0
+          ? match.phones[0].number || null
           : null;
-        
-        // Normalize the phone number format (keep only digits and optional leading +)
+
+        // Normalize the phone number (keep only digits and optional leading +)
         const cleanNumber = rawNumber ? rawNumber.replace(/[^\d+]/g, '') : null;
-        
+
         return {
-          name: match.name || `${match.firstName || ''} ${match.lastName || ''}`.trim(),
+          name: match.fullName || `${match.givenName || ''} ${match.familyName || ''}`.trim(),
           number: cleanNumber
         };
       }

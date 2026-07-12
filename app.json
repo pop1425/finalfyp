@@ -60,6 +60,12 @@
         {
           "contactsPermission": "Allow VoiceSend to access contacts to find transaction recipients."
         }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "This app uses biometric authentication to secure your transactions."
+        }
       ]
     ],
     "experiments": {

@@ -16,4 +16,12 @@ export const isSupabaseConfigured = !!(
 const validUrl = isSupabaseConfigured ? SUPABASE_URL : "https://placeholder-to-prevent-crash.supabase.co";
 const validKey = isSupabaseConfigured ? SUPABASE_ANON_KEY : "placeholder-key";
 
-export const supabase = createClient(validUrl, validKey);
+let supabaseClient: ReturnType<typeof createClient> | null = null;
+
+try {
+  supabaseClient = createClient(validUrl, validKey);
+} catch (e) {
+  console.error('Failed to initialize Supabase client:', e);
+}
+
+export const supabase = supabaseClient!;

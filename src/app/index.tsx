@@ -5,12 +5,12 @@ import {
   View,
   Text,
   TouchableOpacity,
-  SafeAreaView,
   Animated,
   Easing,
   Platform,
   ScrollView
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAudio } from '../hooks/useAudio';
 import { useBiometrics } from '../hooks/useBiometrics';
