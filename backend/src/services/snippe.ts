@@ -7,8 +7,8 @@ const BASE_URL = process.env.SNIPPE_BASE_URL || "https://api.snippe.sh";
 const API_VERSION = process.env.SNIPPE_API_VERSION || "2026-01-25";
 const CHANNEL_ID = process.env.SNIPPE_CHANNEL_ID || "64190d8b11b2686616d63472";
 const CURRENCY = process.env.SNIPPE_CURRENCY || "KES";
-const DEFAULT_SENDER_NAME = process.env.SNIPPE_DEFAULT_SENDER_NAME || "Pop Omondi";
-const DEFAULT_SENDER_PHONE = process.env.SNIPPE_DEFAULT_SENDER_PHONE || "254745398013";
+const DEFAULT_SENDER_NAME = process.env.SNIPPE_DEFAULT_SENDER_NAME || "Emmanuel Joseph";
+const DEFAULT_SENDER_PHONE = process.env.SNIPPE_DEFAULT_SENDER_PHONE || "255768354170";
 
 async function snippeFetch(path: string, options: RequestInit = {}) {
   const url = `${BASE_URL}${path}`;
