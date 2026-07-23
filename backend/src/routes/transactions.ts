@@ -1,11 +1,14 @@
-import { Router, Request, Response } from "express";
+import express from "express";
+const { Router } = express;
+type Request = express.Request;
+type Response = express.Response;
 import {
   sendPayout,
   queryPayout,
   getFee,
   getBalance,
-} from "../services/snippe.js";
-import { saveTransaction, updateTransactionStatus } from "../services/supabase.js";
+} from "../services/snippe.ts";
+import { saveTransaction, updateTransactionStatus } from "../services/supabase.ts";
 
 const router = Router();
 
