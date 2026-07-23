@@ -24,8 +24,8 @@ import { supabase, isSupabaseConfigured } from '../config/supabase';
 import { isGeminiConfigured } from '../config/gemini';
 import { askGemini } from '../utils/geminiService';
 
-// Import ISP Gateway Config
-import { ISP_GATEWAY_CONFIG } from '../config/ispGateway';
+// Import Snippe Payment Gateway
+import { disburse, queryTransaction } from '../utils/snippeService';
 
 export default function HomeScreen() {
   const {
@@ -341,58 +341,91 @@ export default function HomeScreen() {
         setStatusText('Inatuma Ombi Mtandaoni...');
         speakSystemPrompt('REQUESTING_ISP');
 
-        // Build payment gateway JSON payload containing credentials
         const txId = 'TX-' + Math.floor(Math.random() * 9000000 + 1000000);
+
         const payload = {
           transactionId: txId,
-          timestamp: new Date().toISOString(),
           amount: amount,
           recipient: {
             name: recipientName,
             phoneNumber: recipientNumber || 'Unknown/Manual'
           },
           sender: 'Juma',
-          gatewayUrl: ISP_GATEWAY_CONFIG.apiUrl,
-          merchantId: ISP_GATEWAY_CONFIG.merchantId,
-          authorizationKey: ISP_GATEWAY_CONFIG.apiKey // Referenced dynamically
+          gateway: 'Snippe',
         };
 
         setIspPayload(JSON.stringify(payload, null, 2));
         setChatHistory([]);
 
-        // Simulate payment gateway latency (2.5 seconds)
-        setTimeout(async () => {
-          if (isSupabaseConfigured) {
-            try {
-              const { error } = await supabase
-                .from('transactions')
-                .insert([
-                  {
-                    transaction_id: txId,
-                    amount: amount,
-                    recipient: recipientName,
-                    recipient_number: recipientNumber || 'Unknown/Manual',
-                    sender_name: 'Juma'
-                  }
-                ]);
-              if (error) throw error;
-            } catch (e) {
-              console.error('Error writing transfer to database:', e);
+        if (recipientNumber) {
+          const result = await disburse({
+            amount: amount,
+            phoneNumber: recipientNumber.replace(/(?!^\+)\D/g, ''),
+            recipientName: recipientName,
+            reference: txId,
+          });
+
+          if (result.success && result.reference) {
+            const ref = result.reference;
+            let finalStatus = result.status;
+
+            if (finalStatus !== 'completed') {
+              for (let i = 0; i < 12; i++) {
+                await new Promise((r) => setTimeout(r, 5000));
+                const check = await queryTransaction(ref);
+                if (check) {
+                  finalStatus = check.status;
+                  if (finalStatus === 'completed' || finalStatus === 'failed') break;
+                }
+              }
             }
+
+            if (finalStatus === 'completed') {
+              if (isSupabaseConfigured) {
+                try {
+                  const { error } = await supabase
+                    .from('transactions')
+                    .insert([{
+                      transaction_id: txId,
+                      amount: amount,
+                      recipient: recipientName,
+                      recipient_number: recipientNumber,
+                      sender_name: 'Juma'
+                    }]);
+                  if (error) throw error;
+                } catch (e) {
+                  console.error('Error writing transfer to database:', e);
+                }
+              }
+
+              setAppState('SUCCESS');
+              setStatusText('Muamala Umekamilika');
+              speakSystemPrompt('SUCCESS', { amount, recipient: recipientName });
+            } else {
+              console.error('Payout failed or timed out:', finalStatus);
+              setAppState('CANCELLED');
+              setStatusText('Muamala Umeshindwa');
+              speak('Muamala umeshindwa. ' + (finalStatus || 'Muda umekwisha'), 'sw-TZ');
+            }
+          } else {
+            console.error('Disbursement failed:', result.message);
+            setAppState('CANCELLED');
+            setStatusText('Muamala Umeshindwa');
+            speak('Muamala umeshindwa. ' + (result.message || ''), 'sw-TZ');
           }
+        } else {
+          setAppState('CANCELLED');
+          setStatusText('Namba ya Simu Haijatolewa');
+          speak('Namba ya simu ya mpokeaji haijatolewa.', 'sw-TZ');
+        }
 
-          setAppState('SUCCESS');
-          setStatusText('Muamala Umekamilika');
-          speakSystemPrompt('SUCCESS', { amount, recipient: recipientName });
-
-          setTimeout(() => {
-            setAppState('IDLE');
-            setStatusText('Gusa ili Kuanza');
-            setCurrentTransaction(null);
-            setSpokenTextDisplay('');
-            setIspPayload('');
-          }, 5000);
-        }, 2500);
+        setTimeout(() => {
+          setAppState('IDLE');
+          setStatusText('Gusa ili Kuanza');
+          setCurrentTransaction(null);
+          setSpokenTextDisplay('');
+          setIspPayload('');
+        }, 5000);
       },
       // Failure Callback
       (error: any) => {

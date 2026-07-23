@@ -1,7 +1,6 @@
 // src/config/ispGateway.ts
 
-export const ISP_GATEWAY_CONFIG = {
-  apiUrl: "https://api.your-isp-gateway.com/v1/payments", // Replace with your ISP endpoint
-  apiKey: "YOUR_ISP_TRANSACTION_GATEWAY_KEY",           // Place your gateway key here
-  merchantId: "YOUR_MERCHANT_ID"
+export const SNIPPE_CONFIG = {
+  apiKey: process.env.EXPO_PUBLIC_SNIPPE_API_KEY ?? "",
+  webhookSecret: process.env.EXPO_PUBLIC_SNIPPE_WEBHOOK_SECRET ?? "",
 };

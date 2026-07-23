@@ -1,13 +1,7 @@
 {
   "expo": {
-<<<<<<< HEAD
-    "name": "App",
-    "slug": "App",
-=======
     "name": "VoiceSend",
-    "slug": "VoiceSend",
-    "owner": "mashikus-team",
->>>>>>> acc40d6e83e4ff17ad6424fec0fc6eb566c156c9
+    "slug": "App",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -17,13 +11,8 @@
       "icon": "./assets/expo.icon",
       "infoPlist": {
         "NSFaceIDUsageDescription": "This app uses biometric authentication to secure your transactions.",
-<<<<<<< HEAD
-        "NSMicrophoneUsageDescription": "Allow App to use the microphone for transaction commands.",
-        "NSSpeechRecognitionUsageDescription": "Allow App to use speech recognition to parse transaction commands."
-=======
         "NSMicrophoneUsageDescription": "Allow VoiceSend to use the microphone for transaction commands.",
         "NSSpeechRecognitionUsageDescription": "Allow VoiceSend to use speech recognition to parse transaction commands."
->>>>>>> acc40d6e83e4ff17ad6424fec0fc6eb566c156c9
       }
     },
     "android": {
@@ -86,7 +75,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "39053352-84c8-4726-8ee2-878dbdd57944"
+        "projectId": "50b18dd8-3dd4-4ce5-adeb-f7a02eb877b9"
       }
     },
     "owner": "pop1425"
