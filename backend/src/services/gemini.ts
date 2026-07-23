@@ -59,7 +59,7 @@ export async function parseVoiceCommand(text: string): Promise<ParsedCommand> {
     throw new Error(`Gemini API error ${res.status}: ${err}`);
   }
 
-  const data = await res.json();
+  const data: any = await res.json();
   const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
 
   const jsonMatch = raw.match(/\{[\s\S]*\}/);

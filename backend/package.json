@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "VoiceSend payment API server",
   "scripts": {
-    "start": "npx tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
     "dev": "npx tsx watch src/index.ts"
   },
   "dependencies": {
@@ -12,11 +13,10 @@
     "dotenv": "^16.4.5",
     "@supabase/supabase-js": "^2.49.1",
     "express-validator": "^7.2.1",
-    "tsx": "^4.7.0"
+    "typescript": "^5.3.3"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
-    "@types/cors": "^2.8.17",
-    "typescript": "^5.3.3"
+    "@types/cors": "^2.8.17"
   }
 }

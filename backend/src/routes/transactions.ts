@@ -63,7 +63,7 @@ router.post("/disburse", async (req: Request, res: Response) => {
 // GET /api/transactions/:reference/status
 router.get("/:reference/status", async (req: Request, res: Response) => {
   try {
-    const { reference } = req.params;
+    const reference = req.params.reference as string;
     const result = await queryPayout(reference);
     res.json(result);
   } catch (error: unknown) {
