@@ -20,12 +20,9 @@ import { parseSpokenText } from '../utils/nlpParser';
 // Import Supabase config
 import { supabase, isSupabaseConfigured } from '../config/supabase';
 
-// Import Gemini AI Config and Service
-import { isGeminiConfigured } from '../config/gemini';
-import { askGemini } from '../utils/geminiService';
-
-// Import Snippe Payment Gateway
-import { disburse, queryTransaction } from '../utils/snippeService';
+// Import Backend API
+import { disburse as backendDisburse, getStatus } from '../api/transactions';
+import { parseVoiceCommand } from '../api/nlp';
 
 export default function HomeScreen() {
   const {
@@ -51,7 +48,7 @@ export default function HomeScreen() {
   // Real ISP Payment Gateway JSON Log
   const [ispPayload, setIspPayload] = useState<string>('');
 
-  // Gemini AI Chat History
+  // Gemini AI Chat History (unused - backend handles NLP)
   const [chatHistory, setChatHistory] = useState<any[]>([]);
 
   // Animation values
@@ -105,9 +102,8 @@ export default function HomeScreen() {
 
   // Initial welcome greeting & Supabase subscription
   useEffect(() => {
-    const welcomeKey = isSupabaseConfigured
-      ? (isGeminiConfigured ? 'WELCOME_AI_CLOUD' : 'WELCOME_CLOUD')
-      : (isGeminiConfigured ? 'WELCOME_AI_OFFLINE' : 'WELCOME_OFFLINE');
+    // Backend always has AI configured, so use cloud welcome
+    const welcomeKey = isSupabaseConfigured ? 'WELCOME_AI_CLOUD' : 'WELCOME_OFFLINE';
 
     if (!isSupabaseConfigured) {
       const timer = setTimeout(() => {
@@ -218,66 +214,44 @@ export default function HomeScreen() {
     }
   }, [speechResult]);
 
-  // Main NLP & AI command processor
+  // Main NLP command processor (via backend API)
   const handleProcessCommand = async (text: string) => {
     setStatusText('Inachakata muamala...');
 
-    // If Gemini AI is configured, let it handle conversational parsing!
-    if (isGeminiConfigured) {
-      try {
-        const aiResponse = await askGemini(text, chatHistory);
+    try {
+      const parsed = await parseVoiceCommand(text);
+      console.log("Backend parsed response:", parsed);
+
+      if (parsed.intent === 'cancel' || parsed.intent === 'help') {
+        handleCancel();
+        return;
+      }
+
+      if (parsed.intent === 'send_money' && parsed.amount) {
+        const recipientName = parsed.recipient || 'Unknown';
+        setStatusText(`Inatafuta mawasiliano ya ${recipientName}...`);
         
-        if (aiResponse) {
-          console.log("Gemini parsed response:", aiResponse);
-          
-          // Speak AI response Speech using Swahili
-          speak(aiResponse.responseSpeech, 'sw-TZ');
-          
-          setChatHistory(prev => [
-            ...prev,
-            { role: "user", parts: [{ text: text }] },
-            { role: "model", parts: [{ text: JSON.stringify(aiResponse) }] }
-          ]);
-
-          if (aiResponse.intent === 'CANCEL') {
-            handleCancel();
-          } else if (aiResponse.intent === 'CLARIFY') {
-            setStatusText('Inasikiliza maelezo...');
-            setTimeout(() => {
-              startListening();
-            }, 4500);
-          } else if (aiResponse.intent === 'SEND' && aiResponse.amount) {
-            const recipientName = aiResponse.recipient || 'Unknown';
-            setStatusText(`Inatafuta mawasiliano ya ${recipientName}...`);
-            
-            speakSystemPrompt('SEARCHING_CONTACTS', { recipient: recipientName });
-            
-            const contact = await findContactByName(recipientName);
-            if (!contact) {
-              setStatusText('Mawasiliano Hayakufanikiwa');
-              speak(`Mawasiliano ya ${recipientName} hayakupatikana kwenye orodha yako ya simu.`, 'sw-TZ');
-              setChatHistory([]);
-              setAppState('IDLE');
-              setTimeout(() => {
-                setStatusText('Gusa ili Kuanza');
-              }, 4000);
-              return;
-            }
-
-            handleSendTransaction(aiResponse.amount, contact.name, contact.number);
-          } else if (aiResponse.intent === 'CHITCHAT') {
-            setAppState('IDLE');
+        speakSystemPrompt('SEARCHING_CONTACTS', { recipient: recipientName });
+        
+        const contact = await findContactByName(recipientName);
+        if (!contact) {
+          setStatusText('Mawasiliano Hayakufanikiwa');
+          speak(`Mawasiliano ya ${recipientName} hayakupatikana kwenye orodha yako ya simu.`, 'sw-TZ');
+          setAppState('IDLE');
+          setTimeout(() => {
             setStatusText('Gusa ili Kuanza');
-            setChatHistory([]);
-          }
+          }, 4000);
           return;
         }
-      } catch (err) {
-        console.error("AI flow failed, falling back to local engine:", err);
+
+        handleSendTransaction(parsed.amount, contact.name, contact.number);
+        return;
       }
+    } catch (err) {
+      console.error("Backend NLP failed, falling back to local engine:", err);
     }
 
-    // Fallback: Local Regex-based parser if AI is disabled or fails
+    // Fallback: Local Regex-based parser
     const result = parseSpokenText(text) as any;
 
     if (result.type === 'CANCEL') {
@@ -332,7 +306,7 @@ export default function HomeScreen() {
     }, 3500);
   };
 
-  // Trigger Fingerprint verification and call ISP Gateway
+  // Trigger Fingerprint verification and call Backend API
   const triggerFingerprintAuth = (amount: number, recipientName: string, recipientNumber: string | null) => {
     authenticate(
       // Success Callback
@@ -351,67 +325,61 @@ export default function HomeScreen() {
             phoneNumber: recipientNumber || 'Unknown/Manual'
           },
           sender: 'Juma',
-          gateway: 'Snippe',
+          gateway: 'Snippe (via Backend)',
         };
 
         setIspPayload(JSON.stringify(payload, null, 2));
-        setChatHistory([]);
 
         if (recipientNumber) {
-          const result = await disburse({
-            amount: amount,
-            phoneNumber: recipientNumber.replace(/(?!^\+)\D/g, ''),
-            recipientName: recipientName,
-            reference: txId,
-          });
+          try {
+            const result = await backendDisburse({
+              amount: amount,
+              recipient_name: recipientName,
+              recipient_phone: recipientNumber.replace(/(?!^\+)\D/g, ''),
+              reference: txId,
+              sender_name: 'Juma',
+            });
 
-          if (result.success && result.reference) {
-            const ref = result.reference;
-            let finalStatus = result.status;
+            if (result.success) {
+              const ref = result.transaction_id;
+              let finalStatus = result.status;
 
-            if (finalStatus !== 'completed') {
-              for (let i = 0; i < 12; i++) {
-                await new Promise((r) => setTimeout(r, 5000));
-                const check = await queryTransaction(ref);
-                if (check) {
-                  finalStatus = check.status;
-                  if (finalStatus === 'completed' || finalStatus === 'failed') break;
-                }
-              }
-            }
-
-            if (finalStatus === 'completed') {
-              if (isSupabaseConfigured) {
-                try {
-                  const { error } = await supabase
-                    .from('transactions')
-                    .insert([{
-                      transaction_id: txId,
-                      amount: amount,
-                      recipient: recipientName,
-                      recipient_number: recipientNumber,
-                      sender_name: 'Juma'
-                    }]);
-                  if (error) throw error;
-                } catch (e) {
-                  console.error('Error writing transfer to database:', e);
+              if (finalStatus !== 'completed') {
+                for (let i = 0; i < 12; i++) {
+                  await new Promise((r) => setTimeout(r, 5000));
+                  try {
+                    const check = await getStatus(ref);
+                    if (check) {
+                      finalStatus = check.status;
+                      if (finalStatus === 'completed' || finalStatus === 'failed') break;
+                    }
+                  } catch (e) {
+                    console.error('Status check failed:', e);
+                  }
                 }
               }
 
-              setAppState('SUCCESS');
-              setStatusText('Muamala Umekamilika');
-              speakSystemPrompt('SUCCESS', { amount, recipient: recipientName });
+              if (finalStatus === 'completed') {
+                setAppState('SUCCESS');
+                setStatusText('Muamala Umekamilika');
+                speakSystemPrompt('SUCCESS', { amount, recipient: recipientName });
+              } else {
+                console.error('Payout failed or timed out:', finalStatus);
+                setAppState('CANCELLED');
+                setStatusText('Muamala Umeshindwa');
+                speak('Muamala umeshindwa. ' + (finalStatus || 'Muda umekwisha'), 'sw-TZ');
+              }
             } else {
-              console.error('Payout failed or timed out:', finalStatus);
+              console.error('Disbursement failed:', result.message);
               setAppState('CANCELLED');
               setStatusText('Muamala Umeshindwa');
-              speak('Muamala umeshindwa. ' + (finalStatus || 'Muda umekwisha'), 'sw-TZ');
+              speak('Muamala umeshindwa. ' + (result.message || ''), 'sw-TZ');
             }
-          } else {
-            console.error('Disbursement failed:', result.message);
+          } catch (err) {
+            console.error('Backend disburse error:', err);
             setAppState('CANCELLED');
             setStatusText('Muamala Umeshindwa');
-            speak('Muamala umeshindwa. ' + (result.message || ''), 'sw-TZ');
+            speak('Muamala umeshindwa. Hitilafu ya mtandao.', 'sw-TZ');
           }
         } else {
           setAppState('CANCELLED');
@@ -529,7 +497,7 @@ export default function HomeScreen() {
             {isSupabaseConfigured ? '🟢 CLOUD' : '🟡 LOCAL'}
           </Text>
           <Text style={styles.badge}>
-            {isGeminiConfigured ? '🟢 AI ACTIVE' : '🟡 LOCAL NLP'}
+            🟢 AI ACTIVE
           </Text>
         </View>
 

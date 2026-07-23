@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: voicesend-backend
+    runtime: node
+    region: oregon
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node src/index.ts
+    envVars:
+      - key: SNIPPE_API_KEY
+        sync: false
+      - key: SNIPPE_WEBHOOK_SECRET
+        sync: false
+      - key: SNIPPE_BASE_URL
+        value: https://api.snippe.sh
+      - key: SNIPPE_API_VERSION
+        value: "2026-01-25"
+      - key: SNIPPE_CHANNEL_ID
+        value: "64190d8b11b2686616d63472"
+      - key: SNIPPE_CURRENCY
+        value: KES
+      - key: SNIPPE_DEFAULT_SENDER_NAME
+        value: "Pop Omondi"
+      - key: SNIPPE_DEFAULT_SENDER_PHONE
+        value: "254745398013"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: PORT
+        value: "3000"
