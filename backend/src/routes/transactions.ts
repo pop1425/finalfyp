@@ -4,8 +4,8 @@ import {
   queryPayout,
   getFee,
   getBalance,
-} from "../services/snippe";
-import { saveTransaction, updateTransactionStatus } from "../services/supabase";
+} from "../services/snippe.js";
+import { saveTransaction, updateTransactionStatus } from "../services/supabase.js";
 
 const router = Router();
 

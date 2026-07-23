@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { parseVoiceCommand } from "../services/gemini";
+import { parseVoiceCommand } from "../services/gemini.js";
 
 const router = Router();
 

@@ -20,8 +20,8 @@ app.get("/health", (_req, res) => {
 });
 
 // Routes
-import transactionsRouter from "./routes/transactions";
-import nlpRouter from "./routes/nlp";
+import transactionsRouter from "./routes/transactions.js";
+import nlpRouter from "./routes/nlp.js";
 
 app.use("/api/transactions", transactionsRouter);
 app.use("/api/nlp", nlpRouter);
