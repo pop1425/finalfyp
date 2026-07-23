@@ -12,16 +12,19 @@ import { saveTransaction, updateTransactionStatus } from "../services/supabase.t
 
 const router = Router();
 
+const BACKEND_URL = process.env.BACKEND_URL || "https://backendfina.onrender.com";
+
 // POST /api/transactions/disburse
 router.post("/disburse", async (req: Request, res: Response) => {
   try {
-    const { amount, recipient_name, recipient_phone, reference, sender_name } =
-      req.body;
+    const { amount, recipient_name, recipient_phone, sender_name } = req.body;
 
-    if (!amount || !recipient_name || !recipient_phone || !reference) {
-      res.status(400).json({ error: "Missing required fields" });
+    if (!amount || !recipient_name || !recipient_phone) {
+      res.status(400).json({ error: "Missing required fields: amount, recipient_name, recipient_phone" });
       return;
     }
+
+    const reference = req.body.reference || `TX-${Date.now()}-${Math.floor(Math.random() * 9000 + 1000)}`;
 
     // Save pending transaction to Supabase
     await saveTransaction({
@@ -32,27 +35,27 @@ router.post("/disburse", async (req: Request, res: Response) => {
       sender_name: sender_name || "Pop Omondi",
     });
 
-    // Send payout via Snippe
+    // Send payout via Snippe with webhook
     const snippeResult = await sendPayout({
       amount: Number(amount),
       recipient_name,
       recipient_phone,
-      reference,
-      sender_name,
+      narration: `VoiceSend transfer to ${recipient_name}`,
+      webhook_url: `${BACKEND_URL}/api/webhook/snippe`,
+      metadata: { transaction_id: reference },
     });
 
     // Update transaction with Snippe reference
-    await updateTransactionStatus(
-      reference,
-      "processing",
-      snippeResult.reference || reference
-    );
+    const snippeRef = snippeResult.reference || reference;
+    await updateTransactionStatus(reference, "processing", snippeRef);
 
     res.json({
       success: true,
       transaction_id: reference,
-      snippe_reference: snippeResult.reference,
+      snippe_reference: snippeRef,
       status: snippeResult.status || "processing",
+      fees: snippeResult.fees,
+      total: snippeResult.total,
       message: "Payout initiated",
     });
   } catch (error: unknown) {

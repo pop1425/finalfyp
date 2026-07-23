@@ -22,9 +22,11 @@ app.get("/health", (_req, res) => {
 // Routes
 import transactionsRouter from "./routes/transactions.ts";
 import nlpRouter from "./routes/nlp.ts";
+import webhookRouter from "./routes/webhook.ts";
 
 app.use("/api/transactions", transactionsRouter);
 app.use("/api/nlp", nlpRouter);
+app.use("/api/webhook", webhookRouter);
 
 app.listen(PORT, () => {
   console.log(`VoiceSend backend running on port ${PORT}`);
