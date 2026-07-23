@@ -2,6 +2,7 @@
   "name": "voicesend-backend",
   "version": "1.0.0",
   "description": "VoiceSend payment API server",
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
