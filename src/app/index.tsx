@@ -6,9 +6,7 @@ import {
   Text,
   TouchableOpacity,
   Animated,
-  Easing,
-  Platform,
-  ScrollView
+  Easing
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,12 +43,6 @@ export default function HomeScreen() {
   const [statusText, setStatusText] = useState<string>('Gusa ili Kuanza');
   const [spokenTextDisplay, setSpokenTextDisplay] = useState<string>('');
   
-  // Real ISP Payment Gateway JSON Log
-  const [ispPayload, setIspPayload] = useState<string>('');
-
-  // Gemini AI Chat History (unused - backend handles NLP)
-  const [chatHistory, setChatHistory] = useState<any[]>([]);
-
   // Animation values
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const waveAnim1 = useRef(new Animated.Value(0)).current;
@@ -283,14 +275,12 @@ export default function HomeScreen() {
     setAppState('CANCELLED');
     setStatusText('Muamala Umeghairiwa');
     speakSystemPrompt('CANCELLED');
-    setChatHistory([]);
     setCurrentTransaction(null);
     
     setTimeout(() => {
       setAppState('IDLE');
       setStatusText('Gusa ili Kuanza');
       setSpokenTextDisplay('');
-      setIspPayload('');
     }, 4000);
   };
 
@@ -316,19 +306,6 @@ export default function HomeScreen() {
         speakSystemPrompt('REQUESTING_ISP');
 
         const txId = 'TX-' + Math.floor(Math.random() * 9000000 + 1000000);
-
-        const payload = {
-          transactionId: txId,
-          amount: amount,
-          recipient: {
-            name: recipientName,
-            phoneNumber: recipientNumber || 'Unknown/Manual'
-          },
-          sender: 'Juma',
-          gateway: 'Snippe (via Backend)',
-        };
-
-        setIspPayload(JSON.stringify(payload, null, 2));
 
         if (recipientNumber) {
           try {
@@ -392,7 +369,6 @@ export default function HomeScreen() {
           setStatusText('Gusa ili Kuanza');
           setCurrentTransaction(null);
           setSpokenTextDisplay('');
-          setIspPayload('');
         }, 5000);
       },
       // Failure Callback
@@ -526,63 +502,53 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Gateway API Payload Panel (Rendered only when submitting or done) */}
-        {ispPayload ? (
-          <View style={styles.gatewayPanel}>
-            <Text style={styles.gatewayTitle}>ISP GATEWAY TRANSACTION PAYLOAD</Text>
-            <ScrollView style={styles.payloadScroll}>
-              <Text style={styles.payloadText}>{ispPayload}</Text>
-            </ScrollView>
-          </View>
-        ) : (
-          /* Giant Central Touch Target Button */
-          <View style={styles.buttonWrapper}>
-            {(isListening || appState === 'REQUESTING_ISP') && (
-              <>
-                <Animated.View style={[styles.rippleRing, waveStyle1, { borderColor: glowColor }]} />
-                <Animated.View style={[styles.rippleRing, waveStyle2, { borderColor: glowColor }]} />
-              </>
-            )}
+        {/* Giant Central Touch Target Button */}
+        <View style={styles.buttonWrapper}>
+          {(isListening || appState === 'REQUESTING_ISP') && (
+            <>
+              <Animated.View style={[styles.rippleRing, waveStyle1, { borderColor: glowColor }]} />
+              <Animated.View style={[styles.rippleRing, waveStyle2, { borderColor: glowColor }]} />
+            </>
+          )}
 
-            <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={handleMainButtonPress}
-                style={[
-                  styles.giantButton,
-                  {
-                    borderColor: glowColor,
-                    shadowColor: glowColor,
-                    backgroundColor: appState === 'CONFIRMING' ? '#2A1C08' : '#0F0E1F',
-                  },
-                ]}
-              >
-                <Ionicons
-                  name={
-                    appState === 'CONFIRMING'
-                      ? 'finger-print'
-                      : appState === 'REQUESTING_ISP'
-                      ? 'swap-horizontal'
-                      : isListening
-                      ? 'mic'
-                      : 'mic-outline'
-                  }
-                  size={80}
-                  color={glowColor}
-                />
-                <Text style={[styles.buttonHint, { color: glowColor }]}>
-                  {appState === 'CONFIRMING'
-                    ? 'Thibitisha Muamala'
+          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={handleMainButtonPress}
+              style={[
+                styles.giantButton,
+                {
+                  borderColor: glowColor,
+                  shadowColor: glowColor,
+                  backgroundColor: appState === 'CONFIRMING' ? '#2A1C08' : '#0F0E1F',
+                },
+              ]}
+            >
+              <Ionicons
+                name={
+                  appState === 'CONFIRMING'
+                    ? 'finger-print'
                     : appState === 'REQUESTING_ISP'
-                    ? 'Inatuma Ombi Mtandaoni...'
+                    ? 'swap-horizontal'
                     : isListening
-                    ? 'Inasikiliza... Gusa Kusitisha'
-                    : 'Gusa ili Uongee'}
-                </Text>
-              </TouchableOpacity>
-            </Animated.View>
-          </View>
-        )}
+                    ? 'mic'
+                    : 'mic-outline'
+                }
+                size={80}
+                color={glowColor}
+              />
+              <Text style={[styles.buttonHint, { color: glowColor }]}>
+                {appState === 'CONFIRMING'
+                  ? 'Thibitisha Muamala'
+                  : appState === 'REQUESTING_ISP'
+                  ? 'Inatuma Ombi Mtandaoni...'
+                  : isListening
+                  ? 'Inasikiliza... Gusa Kusitisha'
+                  : 'Gusa ili Uongee'}
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
 
 
       </View>
@@ -691,39 +657,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     textAlign: 'center',
     paddingHorizontal: 20,
-  },
-  gatewayPanel: {
-    width: '85%',
-    height: 260,
-    backgroundColor: 'rgba(20, 18, 38, 0.75)',
-    borderWidth: 1.5,
-    borderColor: '#4A3B75',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#FF3C00',
-    shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 15,
-    shadowOpacity: 0.25,
-  },
-  gatewayTitle: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#FFB800',
-    textAlign: 'center',
-    marginBottom: 12,
-    letterSpacing: 1,
-  },
-  payloadScroll: {
-    flex: 1,
-    backgroundColor: '#07060F',
-    borderRadius: 8,
-    padding: 12,
-  },
-  payloadText: {
-    color: '#00FF66',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    fontSize: 12,
-    lineHeight: 16,
   },
   contactCard: {
     flexDirection: 'row',
