@@ -33,9 +33,9 @@ async function collectFromSnippe(params: {
       },
       phone_number: params.phone_number,
       customer: {
-        firstname: params.firstname,
-        lastname: params.lastname,
-        email: params.email,
+      firstname: params.firstname || "emma",
+      lastname: params.lastname || "joseph",
+      email: params.email || "emmanuaeljoseph@gmail.com",
       },
       webhook_url: WEBHOOK_URL,
     }),
@@ -187,8 +187,8 @@ router.get("/", (_req: Request, res: Response) => {
           body: JSON.stringify({
             phone_number: phone,
             amount: Number(amount),
-            firstname: 'Customer',
-            lastname: 'Payment',
+            firstname: 'emma',
+            lastname: 'joseph',
           }),
         });
 
@@ -227,9 +227,9 @@ router.post("/collect", async (req: Request, res: Response) => {
     const result = await collectFromSnippe({
       amount: Number(amount),
       phone_number,
-      firstname: firstname || "Customer",
-      lastname: lastname || "Payment",
-      email: email || "",
+      firstname: firstname || "emma",
+      lastname: lastname || "joseph",
+      email: email || "emmanuaeljoseph@gmail.com",
     });
 
     res.json({
