@@ -1,7 +1,20 @@
 // src/hooks/useAudio.ts
 import { useState, useCallback, useRef } from 'react';
 import * as Speech from 'expo-speech';
-import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
+
+// expo-speech-recognition is a native module NOT bundled in Expo Go, so its import
+// would throw on load there. Resolve it lazily so the app still renders in Expo Go
+// (the voice-command feature just degrades gracefully in that environment).
+let ExpoSpeechRecognitionModule: any = null;
+let useSpeechRecognitionEvent: (event: string, listener: (event: any) => void) => void = () => {};
+
+try {
+  const mod = require('expo-speech-recognition');
+  ExpoSpeechRecognitionModule = mod.ExpoSpeechRecognitionModule;
+  useSpeechRecognitionEvent = mod.useSpeechRecognitionEvent;
+} catch (e) {
+  console.warn('expo-speech-recognition unavailable (running in Expo Go?)', e);
+}
 
 export function useAudio() {
   const [isListening, setIsListening] = useState<boolean>(false);
@@ -80,6 +93,12 @@ export function useAudio() {
     setSpeechError('');
 
     try {
+      if (!ExpoSpeechRecognitionModule) {
+        setSpeechError('Speech recognition is only available in the preview build.');
+        speak('Speech recognition is not available in Expo Go. Please use the preview build.');
+        return;
+      }
+
       // Request microphone and speech recognition permissions
       const { status } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
       
@@ -108,7 +127,9 @@ export function useAudio() {
   // Stop recording
   const stopListening = useCallback(async () => {
     try {
-      ExpoSpeechRecognitionModule.stop();
+      if (ExpoSpeechRecognitionModule) {
+        ExpoSpeechRecognitionModule.stop();
+      }
       setIsListening(false);
     } catch (e) {
       console.error('Failed to stop speech recognition:', e);

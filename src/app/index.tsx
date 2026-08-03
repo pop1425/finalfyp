@@ -352,11 +352,12 @@ export default function HomeScreen() {
               setStatusText('Muamala Umeshindwa');
               speak('Muamala umeshindwa. ' + (result.message || ''), 'sw-TZ');
             }
-          } catch (err) {
+          } catch (err: any) {
             console.error('Backend disburse error:', err);
             setAppState('CANCELLED');
             setStatusText('Muamala Umeshindwa');
-            speak('Muamala umeshindwa. Hitilafu ya mtandao.', 'sw-TZ');
+            const reason = err?.message ? err.message : 'Hitilafu ya mtandao.';
+            speak('Muamala umeshindwa. ' + reason, 'sw-TZ');
           }
         } else {
           setAppState('CANCELLED');

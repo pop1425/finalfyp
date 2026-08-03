@@ -8,7 +8,11 @@ import {
   getFee,
   getBalance,
 } from "../services/snippe.ts";
-import { saveTransaction, updateTransactionStatus } from "../services/supabase.ts";
+import {
+  createTransaction,
+  getTransaction,
+  updateTransaction,
+} from "../services/transactionStore.ts";
 
 const router = Router();
 
@@ -17,7 +21,7 @@ const BACKEND_URL = process.env.BACKEND_URL || "https://backendfina.onrender.com
 // POST /api/transactions/disburse
 router.post("/disburse", async (req: Request, res: Response) => {
   try {
-    const { amount, recipient_name, recipient_phone, sender_name } = req.body;
+    const { amount, recipient_name, recipient_phone } = req.body;
 
     if (!amount || !recipient_name || !recipient_phone) {
       res.status(400).json({ error: "Missing required fields: amount, recipient_name, recipient_phone" });
@@ -25,15 +29,6 @@ router.post("/disburse", async (req: Request, res: Response) => {
     }
 
     const reference = req.body.reference || `TX-${Date.now()}-${Math.floor(Math.random() * 9000 + 1000)}`;
-
-    // Save pending transaction to Supabase
-    await saveTransaction({
-      transaction_id: reference,
-      amount: Number(amount),
-      recipient: recipient_name,
-      recipient_number: recipient_phone,
-      sender_name: sender_name || "Pop Omondi",
-    });
 
     // Send payout via Snippe with webhook
     const snippeResult = await sendPayout({
@@ -43,17 +38,18 @@ router.post("/disburse", async (req: Request, res: Response) => {
       narration: `VoiceSend transfer to ${recipient_name}`,
       webhook_url: `${BACKEND_URL}/api/webhook/snippe`,
       metadata: { transaction_id: reference },
+      idempotencyKey: `payout-${reference}`,
     });
 
-    // Update transaction with Snippe reference
     const snippeRef = snippeResult.reference || reference;
-    await updateTransactionStatus(reference, "processing", snippeRef);
+    const status = snippeResult.status || "processing";
+    createTransaction(reference, status, snippeRef);
 
     res.json({
       success: true,
       transaction_id: reference,
       snippe_reference: snippeRef,
-      status: snippeResult.status || "processing",
+      status,
       fees: snippeResult.fees,
       total: snippeResult.total,
       message: "Payout initiated",
@@ -70,8 +66,18 @@ router.post("/disburse", async (req: Request, res: Response) => {
 router.get("/:reference/status", async (req: Request, res: Response) => {
   try {
     const reference = req.params.reference as string;
-    const result = await queryPayout(reference);
-    res.json(result);
+    const stored = getTransaction(reference);
+
+    if (!stored || !stored.snippeReference) {
+      res.status(404).json({ error: "Transaction not found" });
+      return;
+    }
+
+    const result = await queryPayout(stored.snippeReference);
+    const status = result.status || stored.status;
+    updateTransaction(reference, status);
+
+    res.json({ reference, status, ...result });
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Status query failed";

@@ -6,12 +6,13 @@ const API_KEY = process.env.SNIPPE_API_KEY!;
 const BASE_URL = process.env.SNIPPE_BASE_URL || "https://api.snippe.sh";
 const API_VERSION = process.env.SNIPPE_API_VERSION || "2026-01-25";
 
-async function snippeFetch(path: string, options: RequestInit = {}) {
+async function snippeFetch(path: string, options: RequestInit = {}, idempotencyKey?: string) {
   const url = `${BASE_URL}${path}`;
   const headers = {
     Authorization: `Bearer ${API_KEY}`,
     "Content-Type": "application/json",
     "X-Snippe-Version": API_VERSION,
+    ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
     ...options.headers,
   };
 
@@ -42,6 +43,7 @@ export async function sendPayout(params: {
   narration?: string;
   webhook_url?: string;
   metadata?: Record<string, string>;
+  idempotencyKey?: string;
 }) {
   const payload: Record<string, unknown> = {
     amount: params.amount,
@@ -57,7 +59,7 @@ export async function sendPayout(params: {
   const data = await snippeFetch("/v1/payouts/send", {
     method: "POST",
     body: JSON.stringify(payload),
-  });
+  }, params.idempotencyKey);
 
   return data.data ?? data;
 }
